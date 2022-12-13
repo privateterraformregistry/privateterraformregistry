@@ -1,20 +1,23 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"privateterraformregistry/internal/modules"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func TestServiceDiscovery(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/.well-known/terraform.json", nil)
 	w := httptest.NewRecorder()
 
-	serviceDiscoveryHandler(w, req)
+	getServiceDiscovery(w, req)
 	res := w.Result()
 	defer res.Body.Close()
-	data, _ := ioutil.ReadAll(res.Body)
+	data, _ := io.ReadAll(res.Body)
 	if string(data) != `{"modules.v1":"/terraform/modules/v1/"}
 ` {
 		t.Errorf(`expected {"modules.v1":"/terraform/modules/v1/"} got %v`, string(data))
@@ -26,13 +29,26 @@ func TestServiceDiscovery(t *testing.T) {
 }
 
 func TestListAvailableVersions(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/v1/modules/hashicorp/consul/aws/versions", nil)
+	r := httptest.NewRequest(http.MethodGet, "/v1/modules/hashicorp/consul/aws/versions", nil)
 	w := httptest.NewRecorder()
 
-	listAvailableVersions(w, req)
+	vars := map[string]string{
+		"namespace": "hashicorp",
+		"system":    "consul",
+		"name":      "aws",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	listAvailableVersions(modules.Modules{
+		Modules: []modules.Module{
+			{Namespace: "hashicorp", System: "consul", Name: "aws", Version: "1.0.0"},
+			{Namespace: "hashicorp", System: "consul", Name: "aws", Version: "1.1.0"},
+			{Namespace: "hashicorp", System: "consul", Name: "aws", Version: "2.0.0"},
+		},
+	})(w, r)
 	res := w.Result()
 	defer res.Body.Close()
-	data, _ := ioutil.ReadAll(res.Body)
+	data, _ := io.ReadAll(res.Body)
 	if string(data) != `{"modules":[{"versions":[{"version":"1.0.0"},{"version":"1.1.0"},{"version":"2.0.0"}]}]}
 ` {
 		t.Errorf(`expected {"modules":[{"versions":[{"version":"1.0.0"},{"version":"1.1.0"},{"version":"2.0.0"}]}]} got %v`, string(data))
@@ -44,15 +60,23 @@ func TestListAvailableVersions(t *testing.T) {
 }
 
 func TestGetDownloadPath(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/v1/modules/hashicorp/consul/aws/0.0.1/download", nil)
+	r := httptest.NewRequest(http.MethodGet, "/v1/modules/hashicorp/consul/aws/0.0.1/download", nil)
 	w := httptest.NewRecorder()
 
-	getDownloadPath(w, req)
+	vars := map[string]string{
+		"namespace": "hashicorp",
+		"system":    "consul",
+		"name":      "aws",
+		"version":   "0.0.1",
+	}
+	r = mux.SetURLVars(r, vars)
+
+	getDownloadPath(w, r)
 	res := w.Result()
 	defer res.Body.Close()
 	header := res.Header.Get("X-Terraform-Get")
-	if string(header) != "https://api.github.com/repos/hashicorp/terraform-aws-consul/tarball/v0.0.1//*?archive=tar.gz" {
-		t.Errorf(`expected https://api.github.com/repos/hashicorp/terraform-aws-consul/tarball/v0.0.1//*?archive=tar.gz got %v`, header)
+	if string(header) != "/modules/hashicorp/consul/aws/0.0.1" {
+		t.Errorf(`expected /modules/hashicorp/consul/aws/0.0.1 got %v`, header)
 	}
 	if res.StatusCode != 204 {
 		t.Errorf(`expected status code 204 got %v`, res.StatusCode)

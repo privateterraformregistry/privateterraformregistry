@@ -1,5 +1,5 @@
 <p align="center">
-	<a href="#"><img src="https://github.com/privateterraformregistry/privateterraformregistry/raw/main/ptrhero.jpg" alt="Caddy" width="450"></a>
+	<a href="#"><img src="https://github.com/privateterraformregistry/privateterraformregistry/raw/main/assets/ptrhero.jpg" alt="Caddy" width="450"></a>
 </p>
 <hr>
 
@@ -9,3 +9,11 @@
 
 :warning: 
 This project is currently in development and should not be used in production.
+
+## Add a Terraform Module
+
+```
+curl -X POST \
+    -F 'module=@file.tar.gz' \
+    https://your.url/modules/hashicorp/consul/aws/1.1.0
+```

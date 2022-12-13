@@ -1,2 +1,7 @@
-/.idea
-/terraform-dummy-*
+.idea
+
+testdata/*
+data/*
+!.gitkeep
+
+file.tar.gz
